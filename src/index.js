@@ -8,7 +8,7 @@ root.render(
   <React.StrictMode>
     <div className='container-xl'>
       <h2 className='p-3 text-center'>Tasks traking table</h2>
-      <TaskTable />
+      <TaskTable getRowCanExpand={() => true} />
     </div>
   </React.StrictMode>
 );

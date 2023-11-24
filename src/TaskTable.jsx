@@ -7,16 +7,45 @@ import {
     getSortedRowModel,
     getExpandedRowModel,
 } from '@tanstack/react-table';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import { TASKS } from './data';
-import { FilterIcon, CalendarIcon } from './icons';
+import { FilterIcon, CalendarIcon, ChevronDown, ChevronRight, ChevronDoubleDown, ChevronDoubleRight } from './icons';
 
-export default function TaskTable() {
+export default function TaskTable({ getRowCanExpand }) {
     // const rerender = useReducer(() => ({}), {})[1]
-
     const data = useMemo(() => TASKS, []);
     const columns = useMemo(() =>
         [
+            {
+                id: 'expander',
+                header: ({ table }) => (
+                    <>
+                        <button
+                            className='btn'
+                            {...{
+                                onClick: table.getToggleAllRowsExpandedHandler(),
+                            }}
+                        >
+                            {table.getIsAllRowsExpanded() ? <ChevronDoubleRight /> : <ChevronDoubleDown />}
+                        </button>{' '}
+                    </>
+                ),
+                cell: ({ row }) => {
+                    return row.getCanExpand() ? (
+                        <button
+                            className='btn'
+                            {...{
+                                onClick: row.getToggleExpandedHandler(),
+                                style: { cursor: 'pointer' },
+                            }}
+                        >
+                            {row.getIsExpanded() ? <ChevronDown /> : <ChevronRight />}
+                        </button>
+                    ) : (
+                        '🔵'
+                    )
+                },
+            },
             {
                 accessorKey: 'id',
                 header: 'ID',
@@ -25,86 +54,66 @@ export default function TaskTable() {
             },
             {
                 accessorKey: 'taskName',
-                header: ({ table }) => (
-                    <>
-                        <button
-                            {...{
-                                onClick: table.getToggleAllRowsExpandedHandler(),
-                            }}
-                        >
-                            {table.getIsAllRowsExpanded() ? '👇' : '👉'}
-                        </button>{' '}
-                        Task Name
-                    </>
-                ),
-                cell: ({ row, getValue }) => (
-                    <div style={{ paddingLeft: `${row.depth * 2}rem` }}>
-                        {row.getCanExpand() ? (
-                            <button
-                                {...{
-                                    onClick: row.getToggleExpandedHandler(),
-                                    style: { cursor: 'pointer' },
-                                }}
-                            >
-                                {row.getIsExpanded() ? '👇' : '👉'}
-                            </button>
-                        ) : (
-                            '🔵'
-                        )}{' '}
-                        {getValue()}
-                    </div>
-                ),
+                header: 'Task Name',
+                enableHiding: false,
             },
             {
-                header: 'Start Date',
                 accessorKey: 'startDate',
+                header: 'Start Date',
                 cell: info =>
                     new Date(info.getValue('startDate')).toLocaleDateString("lt-LT", "yyyy.MM.dd",),
             },
             {
-                header: 'Due Date',
                 accessorKey: 'dueDate',
+                header: 'Due Date',
                 enableHiding: false,
                 cell: info =>
                     new Date(info.getValue('dueDate')).toLocaleDateString("lt-LT", "yyyy.MM.dd",),
             },
             {
-                header: 'Responsible',
                 accessorKey: 'fullName',
+                header: 'Responsible',
                 enableHiding: false,
             },
             {
-                header: 'Completed',
                 accessorKey: 'completed',
+                header: 'Completed',
                 enableHiding: false,
             },
             {
-                header: 'Acquisition Year',
                 accessorKey: 'acquisitionYear',
+                header: 'Acquisition Year',
+
             },
             {
-                header: 'Object',
                 accessorKey: 'object',
+                header: 'Object',
+
             },
             {
-                header: 'Asset Type',
                 accessorKey: 'assetType',
+                header: 'Asset Type',
+
             },
             {
-                header: 'Capability',
                 accessorKey: 'capability',
+                header: 'Capability',
+
             },
             {
-                header: 'Project Planing',
                 accessorKey: 'projectPlaning',
+                header: 'Project Planing',
+
             },
             {
-                header: 'Project System',
                 accessorKey: 'projectSystem',
+                header: 'Project System',
+
             },
             {
-                header: 'program',
                 accessorKey: 'program',
+                header: 'program',
+
             },
             {
                 id: 'actions',
@@ -156,7 +165,7 @@ export default function TaskTable() {
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         getExpandedRowModel: getExpandedRowModel(),
-        getSubRows: row => row.subRows,
+        getRowCanExpand,
 
         onGlobalFilterChange: setGlobalFilter,
         onColumnFiltersChange: setColumnFilters,
@@ -371,18 +380,34 @@ export default function TaskTable() {
                 </thead>
 
                 <tbody className='table-group-divider'>
-                    {table.getRowModel().rows.map(row => (
-                        <tr key={row.id}>
-                            {row.getVisibleCells().map(cell => (
-                                <td key={cell.id}>
-                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                    {/* <div key={cell.id} className="progress" role="progressbar" aria-label="Example 1px high" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100" style={{ height: "2px" }}>
-                                        <div key={cell.id} className="progress-bar" style={{ width: "25%" }}></div>
-                                    </div> */}
-                                </td>
-                            ))}
-                        </tr>
-                    ))}
+                    {table.getRowModel().rows.map(row => {
+                        return (
+                            <Fragment key={row.id}>
+                                <tr>
+                                    {/* first row is a normal row */}
+                                    {row.getVisibleCells().map(cell => {
+                                        return (
+                                            <td key={cell.id}>
+                                                {flexRender(
+                                                    cell.column.columnDef.cell,
+                                                    cell.getContext()
+                                                )}
+                                            </td>
+                                        )
+                                    })}
+                                </tr>
+                                {row.getIsExpanded() && (
+                                    <tr>
+                                        {/* 2nd row is a custom 1 cell row */}
+                                        <td colSpan={row.getVisibleCells().length}>
+                                            {renderSubComponent({ row })}
+                                        </td>
+                                    </tr>
+                                )
+                                }
+                            </Fragment>
+                        )
+                    })}
                 </tbody>
             </table>
             {/* Pagination */}
@@ -471,4 +496,42 @@ const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...prop
     return (
         <input {...props} value={value} onChange={e => setValue(e.target.value)} />
     );
+}
+
+const renderSubComponent = ({ row }) => {
+    return (
+        <div className='row'>
+            {/* <code>{JSON.stringify(row.original, null, 2)}</code> */}
+            <div className="col ms-5">
+                <div className="row ms-4">
+                    <div className='col-md-auto'>
+                        <p className='mb-0 fw-bold'>Object:</p>
+                        <p className='mb-0 fw-bold'>Capability:</p>
+                        <p className='mb-0 fw-bold'>Acquisition Year:</p>
+                    </div>
+                    <div className='col'>
+                        <p className='mb-0'>{row.original.object}</p>
+                        <p className='mb-0'>{row.original.capability}</p>
+                        <p className='mb-0'>{row.original.acquisitionYear}</p>
+                    </div>
+                </div>
+            </div>
+            <div className="col">
+                <div className="row">
+                    <div className='col-md-auto'>
+                        <p className='mb-0 fw-bold'>Program:</p>
+                        <p className='mb-0 fw-bold'>Project Planing:</p>
+                        <p className='mb-0 fw-bold'>Project System:</p>
+                        <p className='mb-0 fw-bold'>Asset Type:</p>
+                    </div>
+                    <div className='col'>
+                        <p className='mb-0'>{row.original.program}</p>
+                        <p className='mb-0'>{row.original.projectPlaning}</p>
+                        <p className='mb-0'>{row.original.projectSystem}</p>
+                        <p className='mb-0'>{row.original.assetType}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
 }
