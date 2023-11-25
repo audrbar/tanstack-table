@@ -6,10 +6,19 @@ import {
     getPaginationRowModel,
     getSortedRowModel,
     getExpandedRowModel,
+    ColumnFiltersState,
+    getFacetedRowModel,
+    getFacetedUniqueValues,
+    getFacetedMinMaxValues,
+    sortingFns,
+    FilterFn,
+    SortingFn,
+    ColumnDef,
+    FilterFns,
 } from '@tanstack/react-table';
 import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import { TASKS } from './data';
-import { FilterIcon, CalendarIcon, ChevronDown, ChevronRight, ChevronDoubleDown, ChevronDoubleRight } from './icons';
+import { FilterIcon, ChevronDown, ChevronRight, ChevronDoubleDown, ChevronDoubleRight, ArrowDownUp } from './icons';
 
 export default function TaskTable({ getRowCanExpand }) {
     // const rerender = useReducer(() => ({}), {})[1]
@@ -45,6 +54,7 @@ export default function TaskTable({ getRowCanExpand }) {
                         '🔵'
                     )
                 },
+                enableHiding: false,
             },
             {
                 accessorKey: 'id',
@@ -60,15 +70,22 @@ export default function TaskTable({ getRowCanExpand }) {
             {
                 accessorKey: 'startDate',
                 header: 'Start Date',
-                cell: info =>
-                    new Date(info.getValue('startDate')).toLocaleDateString("lt-LT", "yyyy.MM.dd",),
+                cell: info => (
+                    <div style={{ width: "6rem" }}>
+                        {new Date(info.getValue('startDate')).toLocaleDateString("lt-LT", "yyyy.MM.dd")}
+                    </div>
+                )
+
             },
             {
                 accessorKey: 'dueDate',
                 header: 'Due Date',
                 enableHiding: false,
-                cell: info =>
-                    new Date(info.getValue('dueDate')).toLocaleDateString("lt-LT", "yyyy.MM.dd",),
+                cell: info => (
+                    <div style={{ width: "6rem" }}>
+                        {new Date(info.getValue('dueDate')).toLocaleDateString("lt-LT", "yyyy.MM.dd",)}
+                    </div>
+                )
             },
             {
                 accessorKey: 'fullName',
@@ -77,7 +94,7 @@ export default function TaskTable({ getRowCanExpand }) {
             },
             {
                 accessorKey: 'completed',
-                header: 'Completed',
+                header: 'Curr State',
                 enableHiding: false,
             },
             {
@@ -112,40 +129,9 @@ export default function TaskTable({ getRowCanExpand }) {
             },
             {
                 accessorKey: 'program',
-                header: 'program',
+                header: 'Program',
+                isVisible: false,
 
-            },
-            {
-                id: 'actions',
-                enableHiding: false,
-                enableSorting: false,
-                cell: ({ row }) => {
-                    const task = row.original;
-                    const taskId = task.id;
-                    return (
-                        <>
-                            <div className="modal fade" id={"exampleModal" + task.id} tabIndex="-1" aria-labelledby={"exampleModalLabel" + task.id} aria-hidden="true">
-                                <div className="modal-dialog">
-                                    <div className="modal-content">
-                                        <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                        <div className="modal-body">
-                                            <p>Modal body text goes here {taskId}.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                id={"exampleModal" + task.id}
-                                className="btn btn-outline-secondary"
-                                data-bs-toggle="modal"
-                                data-bs-target={"#exampleModal" + task.id}
-                            >
-                                <CalendarIcon />
-                            </button >
-                        </>
-                    );
-                }
             },
         ]
         , []);
@@ -165,6 +151,9 @@ export default function TaskTable({ getRowCanExpand }) {
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         getExpandedRowModel: getExpandedRowModel(),
+        getFacetedRowModel: getFacetedRowModel(),
+        getFacetedUniqueValues: getFacetedUniqueValues(),
+        getFacetedMinMaxValues: getFacetedMinMaxValues(),
         getRowCanExpand,
 
         onGlobalFilterChange: setGlobalFilter,
@@ -183,6 +172,15 @@ export default function TaskTable({ getRowCanExpand }) {
             expanded,
         },
     })
+
+    useEffect(() => {
+        if (table.getState().columnFilters[0]?.id === 'fullName') {
+            if (table.getState().sorting[0]?.id !== 'fullName') {
+                table.setSorting([{ id: 'fullName', desc: false }])
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [table.getState().columnFilters[0]?.id])
 
     const filterByObject = [...new Set(data?.map((item) => item.object))];
     const filterByProgram = [...new Set(data?.map((item) => item.program))];
@@ -350,7 +348,7 @@ export default function TaskTable({ getRowCanExpand }) {
                 </div>
             </div>
 
-            {/* Table */}
+            {/* TABLE */}
             <table className='table table-striped table-hover table-responsive'>
                 <thead>
                     {table.getHeaderGroups().map(headerGroup => (
@@ -358,20 +356,32 @@ export default function TaskTable({ getRowCanExpand }) {
                             {headerGroup.headers.map(header => (
                                 <th
                                     key={header.id}
-                                    onClick={header.column.getToggleSortingHandler()}
+                                    colSpan={header.colSpan}
                                 >
                                     {header.isPlaceholder ? null : (
-                                        <div>
-                                            {flexRender(
-                                                header.column.columnDef.header,
-                                                header.getContext()
-                                            )}
-                                            {
-                                                { asc: '↑', desc: '↓' }[
-                                                header.column.getIsSorted() ?? null
-                                                ]
-                                            }
-                                        </div>
+                                        <>
+                                            <div
+                                                {...{
+                                                    className: header.column.getCanSort()
+                                                        ? 'cursor-pointer pe-auto'
+                                                        : '',
+                                                    onClick: header.column.getToggleSortingHandler(),
+                                                }}
+                                            >
+                                                {flexRender(
+                                                    header.column.columnDef.header,
+                                                    header.getContext()
+                                                )}
+                                                {
+                                                    { asc: '↑', desc: '↓' }[header.column.getIsSorted() ?? null]
+                                                }
+                                            </div>
+                                            {header.column.getCanFilter() ? (
+                                                <div>
+                                                    <Filter column={header.column} table={table} />
+                                                </div>
+                                            ) : null}
+                                        </>
                                     )}
                                 </th>
                             ))}
@@ -533,5 +543,71 @@ const renderSubComponent = ({ row }) => {
                 </div>
             </div>
         </div>
+    )
+}
+
+const Filter = ({ column, table }) => {
+    const firstValue = table.getPreFilteredRowModel().flatRows[0]?.getValue(column.id);
+    const columnFilterValue = column.getFilterValue();
+    const sortedUniqueValues = React.useMemo(
+        () =>
+            typeof firstValue === 'number'
+                ? []
+                : Array.from(column.getFacetedUniqueValues().keys()).sort(),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [column.getFacetedUniqueValues()]
+    );
+
+    return typeof firstValue === 'number' ? (
+        <div>
+            <div className="flex space-x-2">
+                <DebouncedInput
+                    type="number"
+                    min={Number(column.getFacetedMinMaxValues()?.[0] ?? '')}
+                    max={Number(column.getFacetedMinMaxValues()?.[1] ?? '')}
+                    value={(columnFilterValue)?.[0] ?? ''}
+                    onChange={value =>
+                        column.setFilterValue((old) => [value, old?.[1]])
+                    }
+                    placeholder={`Min ${column.getFacetedMinMaxValues()?.[0]
+                        ? `(${column.getFacetedMinMaxValues()?.[0]})`
+                        : ''
+                        }`}
+                    className="w-24 border shadow rounded"
+                />
+                <DebouncedInput
+                    type="number"
+                    min={Number(column.getFacetedMinMaxValues()?.[0] ?? '')}
+                    max={Number(column.getFacetedMinMaxValues()?.[1] ?? '')}
+                    value={(columnFilterValue)?.[1] ?? ''}
+                    onChange={value =>
+                        column.setFilterValue((old) => [old?.[0], value])
+                    }
+                    placeholder={`Max ${column.getFacetedMinMaxValues()?.[1]
+                        ? `(${column.getFacetedMinMaxValues()?.[1]})`
+                        : ''
+                        }`}
+                    className="w-24 border shadow rounded"
+                />
+            </div>
+            <div className="h-1" />
+        </div>
+    ) : (
+        <>
+            <datalist id={column.id + 'list'}>
+                {sortedUniqueValues.slice(0, 5000).map((value) => (
+                    <option value={value} key={value} />
+                ))}
+            </datalist>
+            <DebouncedInput
+                type="text"
+                value={(columnFilterValue ?? '')}
+                onChange={value => column.setFilterValue(value)}
+                placeholder={`Search... (${column.getFacetedUniqueValues().size})`}
+                className="w-36 border shadow rounded"
+                list={column.id + 'list'}
+            />
+            <div className="h-1" />
+        </>
     )
 }

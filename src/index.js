@@ -4,11 +4,15 @@ import './index.css';
 import TaskTable from './TaskTable';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
+if (!root) throw new Error('Failed to find the root element')
+
 root.render(
   <React.StrictMode>
     <div className='container-xl'>
       <h2 className='p-3 text-center'>Tasks traking table</h2>
-      <TaskTable getRowCanExpand={() => true} />
+      <TaskTable
+        getRowCanExpand={() => true}
+      />
     </div>
   </React.StrictMode>
 );
