@@ -17,7 +17,7 @@ export const USERS = faker.helpers.multiple(createRandomUser, {
 
 export function createRandomTask() {
     return {
-        id: faker.string.numeric(3),
+        id: faker.string.numeric(4),
         taskName: faker.lorem.sentence(),
         startDate: faker.date.recent(),
         dueDate: faker.date.soon(),

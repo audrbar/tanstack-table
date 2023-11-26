@@ -12,6 +12,7 @@ root.render(
       <h2 className='p-3 text-center'>Tasks traking table</h2>
       <TaskTable
         getRowCanExpand={() => true}
+        enableFacetedValues={() => true}
       />
     </div>
   </React.StrictMode>

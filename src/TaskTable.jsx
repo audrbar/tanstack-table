@@ -6,15 +6,9 @@ import {
     getPaginationRowModel,
     getSortedRowModel,
     getExpandedRowModel,
-    ColumnFiltersState,
     getFacetedRowModel,
     getFacetedUniqueValues,
     getFacetedMinMaxValues,
-    sortingFns,
-    FilterFn,
-    SortingFn,
-    ColumnDef,
-    FilterFns,
 } from '@tanstack/react-table';
 import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import { TASKS } from './data';
@@ -58,8 +52,7 @@ export default function TaskTable({ getRowCanExpand }) {
             },
             {
                 accessorKey: 'id',
-                header: 'ID',
-                enableSorting: false,
+                header: '#',
                 enableHiding: false,
             },
             {
@@ -68,29 +61,24 @@ export default function TaskTable({ getRowCanExpand }) {
                 enableHiding: false,
             },
             {
-                accessorKey: 'startDate',
+                accessorFn: (originalRow) => new Date(originalRow.startDate), //convert to date for sorting and filtering
                 header: 'Start Date',
-                cell: info => (
-                    <div style={{ width: "6rem" }}>
-                        {new Date(info.getValue('startDate')).toLocaleDateString("lt-LT", "yyyy.MM.dd")}
-                    </div>
-                )
+                filterVariant: 'date-range',
+                cell: ({ cell }) => cell.getValue('startDate').toLocaleDateString("lt-LT", "yyyy.MM.dd"), // convert back to string for display
 
             },
             {
-                accessorKey: 'dueDate',
+                accessorFn: (originalRow) => new Date(originalRow.dueDate), //convert to date for sorting and filtering
                 header: 'Due Date',
+                filterVariant: 'date-range',
                 enableHiding: false,
-                cell: info => (
-                    <div style={{ width: "6rem" }}>
-                        {new Date(info.getValue('dueDate')).toLocaleDateString("lt-LT", "yyyy.MM.dd",)}
-                    </div>
-                )
+                cell: ({ cell }) => cell.getValue('dueDate').toLocaleDateString("lt-LT", "yyyy.MM.dd"), // convert back to string for display
             },
             {
                 accessorKey: 'fullName',
                 header: 'Responsible',
                 enableHiding: false,
+                filterVariant: 'multi-select',
             },
             {
                 accessorKey: 'completed',
@@ -155,6 +143,7 @@ export default function TaskTable({ getRowCanExpand }) {
         getFacetedUniqueValues: getFacetedUniqueValues(),
         getFacetedMinMaxValues: getFacetedMinMaxValues(),
         getRowCanExpand,
+        enableFacetedValues: true,
 
         onGlobalFilterChange: setGlobalFilter,
         onColumnFiltersChange: setColumnFilters,
@@ -166,21 +155,29 @@ export default function TaskTable({ getRowCanExpand }) {
         state: {
             sorting,
             columnFilters,
-            columnVisibility,
             rowSelection,
             globalFilter,
             expanded,
+            columnVisibility: {
+                program: false,
+                projectSystem: false,
+                projectPlaning: false,
+                capability: false,
+                assetType: false,
+                object: false,
+                acquisitionYear: false,
+            }
         },
     })
 
-    useEffect(() => {
-        if (table.getState().columnFilters[0]?.id === 'fullName') {
-            if (table.getState().sorting[0]?.id !== 'fullName') {
-                table.setSorting([{ id: 'fullName', desc: false }])
-            }
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [table.getState().columnFilters[0]?.id])
+    // useEffect(() => {
+    //     if (table.getState().columnFilters[0]?.id === 'taskName') {
+    //         if (table.getState().sorting[0]?.id !== 'taskName') {
+    //             table.setSorting([{ id: 'taskName', desc: false }])
+    //         }
+    //     }
+    //     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // }, [table.getState().columnFilters[0]?.id])
 
     const filterByObject = [...new Set(data?.map((item) => item.object))];
     const filterByProgram = [...new Set(data?.map((item) => item.program))];
@@ -190,73 +187,84 @@ export default function TaskTable({ getRowCanExpand }) {
     const filterByAsset = [...new Set(data?.map((item) => item.assetType))];
     const filterByAcquisition = [...new Set(data?.map((item) => item.acquisitionYear))].sort((a, b) => a.localeCompare(b));
 
+    const renderedUperRow = new Set();
+
     return (
         <div className='row'>
-            <div className="d-flex flex-row justify-content-center mb-3">
-                <button className="btn btn-outline-secondary" onClick={() => table.resetColumnFilters()}>
+            {/* Clear ALL Filters and Sorting */}
+            <div className="d-flex flex-row justify-content-center gap-2 mb-3">
+                <button className="btn btn-outline-primary" onClick={() => table.resetColumnFilters()}>
                     Reset ALL Filters
+                </button>
+                <button className="btn btn-outline-primary" onClick={() => table.resetSorting(true)}>
+                    Clear All Sorting
                 </button>
             </div>
             {/* Dropdown Filters by Arrays */}
             <div className="d-flex flex-row justify-content-between mb-3">
                 <select
                     className="form-select bg-transparent mx-2"
-                    aria-label="Default select example"
+                    aria-label="Object select"
                     style={{ width: '9rem' }}
-                    value={table.getColumn("object").getFilterValue()}
+                    value={table.getColumn("object").getFilterValue() || ''}
                     onChange={(e) => table.getColumn("object")?.setFilterValue(e.target.value)}
                 >
-                    <option defaultValue={"Pick Object"} value="">Pick Object</option>
+                    <option value="">Pick Object</option>
                     {filterByObject.map((columnFilter, index) => (
                         <option key={index} value={columnFilter}>{columnFilter}</option>))}
                 </select>
                 <select
                     className="form-select bg-transparent mx-2"
-                    aria-label="Default select example"
+                    aria-label="Program select"
                     style={{ width: '10rem' }}
+                    value={table.getColumn("object").getFilterValue() || ''}
                     onChange={(e) => table.getColumn("program")?.setFilterValue(e.target.value)}
                 >
-                    <option defaultValue={"Pick Program"}>Pick Program</option>
+                    <option value="">Pick Program</option>
                     {filterByProgram.map((columnFilter, index) => (
                         <option key={index} value={columnFilter}>{columnFilter}</option>))}
                 </select>
                 <select
                     className="form-select bg-transparent mx-2"
-                    aria-label="Default select example"
+                    aria-label="Capability select"
                     style={{ width: '10rem' }}
+                    value={table.getColumn("object").getFilterValue() || ''}
                     onChange={(e) => table.getColumn("capability")?.setFilterValue(e.target.value)}
                 >
-                    <option defaultValue={"Pick Capability"}>Pick Capability</option>
+                    <option value="">Pick Capability</option>
                     {filterByCapability.map((columnFilter, index) => (
                         <option key={index} value={columnFilter}>{columnFilter}</option>))}
                 </select>
                 <select
                     className="form-select bg-transparent mx-2"
-                    aria-label="Default select example"
+                    aria-label="Project Planing select"
                     style={{ width: '11rem' }}
+                    value={table.getColumn("object").getFilterValue() || ''}
                     onChange={(e) => table.getColumn("projectPlaning")?.setFilterValue(e.target.value)}
                 >
-                    <option defaultValue="Pick Planed Item">Pick Planed Item</option>
+                    <option defaultValue="Pick Planed Item" value="">Pick Planed Item</option>
                     {filterByPlaning.map((columnFilter, index) => (
                         <option key={index} value={columnFilter}>{columnFilter}</option>))}
                 </select>
                 <select
                     className="form-select bg-transparent mx-2"
-                    aria-label="Default select example"
+                    aria-label="Project System select"
                     style={{ width: '13rem' }}
+                    value={table.getColumn("object").getFilterValue() || ''}
                     onChange={(e) => table.getColumn("projectSystem")?.setFilterValue(e.target.value)}
                 >
-                    <option defaultValue="Pick System Project">Pick System Project</option>
+                    <option defaultValue="Pick System Project" value="">Pick System Project</option>
                     {filterBySystem.map((columnFilter, index) => (
                         <option key={index} value={columnFilter}>{columnFilter}</option>))}
                 </select>
                 <select
                     className="form-select bg-transparent mx-2"
-                    aria-label="Default select example"
+                    aria-label="Asset Type select"
                     style={{ width: '8rem' }}
+                    value={table.getColumn("object").getFilterValue() || ''}
                     onChange={(e) => table.getColumn("assetType")?.setFilterValue(e.target.value)}
                 >
-                    <option defaultValue="Pick Asset">Pick Asset</option>
+                    <option defaultValue="Pick Asset" value="">Pick Asset</option>
                     {filterByAsset.map((columnFilter, index) => (
                         <option key={index} value={columnFilter}
 
@@ -264,62 +272,42 @@ export default function TaskTable({ getRowCanExpand }) {
                 </select>
             </div>
 
-            {/* Filter radio buttons Acquisition Year*/}
-            <div className="d-flex justify-content-center gap-2 btn-group-sm" role="group" aria-label="Basic radio toggle button group">
-                <input type="radio" className="btn-check" name="btnradio" id="btnradiox" autoComplete="off" defaultChecked={true} />
-                <label
-                    className="btn btn-outline-secondary"
-                    htmlFor="btnradiox"
-                    onChange={() => table.getColumn("acquisitionYear")?.setFilterValue('')}
-                >
-                    Acquisition Year
-                </label>
-                {filterByAcquisition?.map((year, index) => (
-                    <React.Fragment key={index}>
-                        <input key={"input" + index} type="radio" className="btn-check" name="btnradio" id={"btnradio" + index} autoComplete="off" />
-                        <label
-                            key={"label" + index}
-                            className="btn btn-outline-secondary"
-                            htmlFor={"btnradio" + index}
-                            onClick={() => table.getColumn("acquisitionYear")?.setFilterValue(year)}
-                        >
-                            {year}
-                        </label>
-                    </React.Fragment>
-                ))}
-            </div>
-
-            <div className='d-flex flex-row justify-content-between py-2'>
+            <div className='d-flex flex-row justify-content-between align-items-center py-2'>
                 {/* Global Text Search */}
                 <DebouncedInput
                     value={globalFilter ?? ''}
                     className='form-control p-2 mx-2'
                     placeholder="Search all columns..."
-                    style={{ width: '15rem' }}
+                    style={{ width: '15rem', height: '2.46rem' }}
                     onChange={value => setGlobalFilter(String(value))}
                 />
-                <span>
-                    {table.getFilteredSelectedRowModel().rows.length} of{" "}
-                    {table.getFilteredRowModel().rows.length} task(s) selected
-                </span>
-                {/* Filter Page Size*/}
-                <select
-                    className='form-select bg-transparent'
-                    aria-label="Page size select"
-                    value={table.getState().pagination.pageSize}
-                    onChange={(e) => {
-                        table.setPageSize(Number(e.target.value));
-                    }}
-                    style={{ width: '8rem' }}
-                >
-                    {[10, 20, 30, 50].map((pageSize, index) => (
-                        <option key={index} value={pageSize}>
-                            Show {pageSize}
-                        </option>
+                {/* Filter radio buttons Acquisition Year*/}
+                <div className="d-flex justify-content-center gap-2 btn-group" role="group" aria-label="Basic radio toggle button group">
+                    <input type="radio" className="btn-check" name="btnradio" id="btnradiox" autoComplete="off" defaultChecked={true} />
+                    <label
+                        className="btn btn-outline-secondary"
+                        htmlFor="btnradiox"
+                        onClick={() => table.getColumn("acquisitionYear")?.setFilterValue('')}
+                    >
+                        Acquisition Year
+                    </label>
+                    {filterByAcquisition?.map((year, index) => (
+                        <React.Fragment key={index}>
+                            <input key={"input" + index} type="radio" className="btn-check" name="btnradio" id={"btnradio" + index} autoComplete="off" />
+                            <label
+                                key={"label" + index}
+                                className="btn btn-outline-secondary"
+                                htmlFor={"btnradio" + index}
+                                onClick={() => table.getColumn("acquisitionYear")?.setFilterValue(year)}
+                            >
+                                {year}
+                            </label>
+                        </React.Fragment>
                     ))}
-                </select>
+                </div>
+
                 {/* Visible Columns*/}
-                <div className='dropdown-center'>
+                <div className='dropdown-center mx-2'>
                     <button className="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="true">
                         Visible Columns
                     </button>
@@ -331,7 +319,7 @@ export default function TaskTable({ getRowCanExpand }) {
                                 return (
                                     <li className="dropdown-item" key={"li" + column.id}>
                                         <input
-                                            className="form-check-input"
+                                            className="form-check-input mx-1"
                                             type='checkbox'
                                             key={"input" + column.id}
                                             checked={column.getIsVisible()}
@@ -346,10 +334,29 @@ export default function TaskTable({ getRowCanExpand }) {
                             })}
                     </ul>
                 </div>
+
+                {/* Filter Page Size*/}
+                <select
+                    className='form-select bg-transparent'
+                    aria-label="Page size select"
+                    value={table.getState().pagination.pageSize}
+                    onChange={(e) => {
+                        table.setPageSize(Number(e.target.value));
+                    }}
+                    style={{ width: '8rem', height: '2.46rem' }}
+                >
+                    {[10, 20, 30, 50].map((pageSize, index) => (
+                        <option key={index} value={pageSize}>
+                            Show {pageSize}
+                        </option>
+                    ))}
+                </select>
             </div>
 
-            {/* TABLE */}
-            <table className='table table-striped table-hover table-responsive'>
+            {/* TABLE TABLE TABLE TABLE*/}
+            <table className='table table-sm caption-top table-striped table-hover table-responsive'>
+                <caption className='mx-4'>{table.getFilteredRowModel().rows.length} of{" "}
+                    {table.getPrePaginationRowModel().rows.length} task(s) filtered</caption>
                 <thead>
                     {table.getHeaderGroups().map(headerGroup => (
                         <tr key={headerGroup.id}>
@@ -360,10 +367,15 @@ export default function TaskTable({ getRowCanExpand }) {
                                 >
                                     {header.isPlaceholder ? null : (
                                         <>
+                                            {header.column.getCanFilter() ? (
+                                                <div>
+                                                    <Filter column={header.column} table={table} />
+                                                </div>
+                                            ) : null}
                                             <div
                                                 {...{
-                                                    className: header.column.getCanSort()
-                                                        ? 'cursor-pointer pe-auto'
+                                                    role: header.column.getCanSort()
+                                                        ? 'button'
                                                         : '',
                                                     onClick: header.column.getToggleSortingHandler(),
                                                 }}
@@ -375,12 +387,11 @@ export default function TaskTable({ getRowCanExpand }) {
                                                 {
                                                     { asc: '↑', desc: '↓' }[header.column.getIsSorted() ?? null]
                                                 }
+                                                {
+                                                    header.column.getCanSort() && !header.column.getIsSorted() ? <ArrowDownUp /> : null
+                                                }
+
                                             </div>
-                                            {header.column.getCanFilter() ? (
-                                                <div>
-                                                    <Filter column={header.column} table={table} />
-                                                </div>
-                                            ) : null}
                                         </>
                                     )}
                                 </th>
@@ -390,9 +401,23 @@ export default function TaskTable({ getRowCanExpand }) {
                 </thead>
 
                 <tbody className='table-group-divider'>
-                    {table.getRowModel().rows.map(row => {
+                    {table.getRowModel().rows.map((row, index) => {
+                        let upperRow = null;
+                        if (!renderedUperRow.has(row.original.object)) {
+                            upperRow = <tr key={index}>
+                                {/* 2nd row is a custom 1 cell row */}
+                                <td colSpan={row.getVisibleCells().length}>
+                                    {renderUperRow({ row })}
+                                </td>
+                            </tr>
+                            renderedUperRow.add(row.original.object)
+                        }
                         return (
                             <Fragment key={row.id}>
+                                {/* upper row is a custom 1 cell row */}
+                                {
+                                    upperRow
+                                }
                                 <tr>
                                     {/* first row is a normal row */}
                                     {row.getVisibleCells().map(cell => {
@@ -413,54 +438,70 @@ export default function TaskTable({ getRowCanExpand }) {
                                             {renderSubComponent({ row })}
                                         </td>
                                     </tr>
-                                )
-                                }
+                                )}
                             </Fragment>
                         )
                     })}
                 </tbody>
             </table>
-            {/* Pagination */}
-            <div className='d-flex justify-content-center gap-2 btn-group-sm' role="group" aria-label="Basic outlined example">
-                <button
-                    style={{ width: '2.1rem' }}
-                    type="button"
-                    className="btn btn-outline-secondary"
-                    onClick={() => table.setPageIndex(0)}
+            <div className="d-flex flex-row justify-content-between">
+                {/* Statistics */}
+                <span>
+                    {table.getFilteredRowModel().rows.length} of{" "}
+                    {table.getPrePaginationRowModel().rows.length} task(s) filtered
+                </span>
+                {/* Pagination */}
+                <div className='d-flex justify-content-center gap-2 btn-group-sm' role="group" aria-label="Basic outlined example" style={{ height: '2.1rem' }}>
+                    <button
+                        style={{ width: '2.1rem' }}
+                        type="button"
+                        className="btn btn-outline-secondary"
+                        onClick={() => table.setPageIndex(0)}
+                    >
+                        {"<<"}
+                    </button>
+                    <button
+                        style={{ width: '2.1rem' }}
+                        type="button" className="btn btn-outline-secondary"
+                        disabled={!table.getCanPreviousPage()}
+                        onClick={() => table.previousPage()}
+                    >
+                        {"<"}
+                    </button>
+                    <span className='d-flex align-items-center'>Page<strong className='mx-1'>{table.getState().pagination.pageIndex + 1}</strong> of <strong className='mx-1'>{table.getPageCount()}</strong></span>
+                    <button
+                        style={{ width: '2.1rem' }}
+                        type="button" className="btn btn-outline-secondary"
+                        disabled={!table.getCanNextPage()}
+                        onClick={() => table.nextPage()}
+                    >
+                        {">"}
+                    </button>
+                    <button
+                        style={{ width: '2.1rem' }}
+                        type="button"
+                        className="btn btn-outline-secondary"
+                        onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+                    >
+                        {">>"}
+                    </button>
+                </div>
+                {/* Filter Page Size*/}
+                <select
+                    className='form-select bg-transparent'
+                    aria-label="Page size select"
+                    value={table.getState().pagination.pageSize}
+                    onChange={(e) => {
+                        table.setPageSize(Number(e.target.value));
+                    }}
+                    style={{ width: '8rem', height: '2.46rem' }}
                 >
-                    {"<<"}
-                </button>
-                <button
-                    style={{ width: '2.1rem' }}
-                    type="button" className="btn btn-outline-secondary"
-                    disabled={!table.getCanPreviousPage()}
-                    onClick={() => table.previousPage()}
-                >
-                    {"<"}
-                </button>
-                <span className='d-flex align-items-center'>Page<strong className='mx-1'>{table.getState().pagination.pageIndex + 1}</strong> of <strong className='mx-1'>{table.getPageCount()}</strong></span>
-                <button
-                    style={{ width: '2.1rem' }}
-                    type="button" className="btn btn-outline-secondary"
-                    disabled={!table.getCanNextPage()}
-                    onClick={() => table.nextPage()}
-                >
-                    {">"}
-                </button>
-                <button
-                    style={{ width: '2.1rem' }}
-                    type="button"
-                    className="btn btn-outline-secondary"
-                    onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                >
-                    {">>"}
-                </button>
-            </div>
-            {/* Statistics */}
-            <div className="flex-1 text-sm text-muted-foreground">
-                {table.getFilteredSelectedRowModel().rows.length} of{" "}
-                {table.getFilteredRowModel().rows.length} row(s) selected
-                <div>{table.getRowModel().rows.length} Rows</div>
+                    {[10, 20, 30, 50].map((pageSize, index) => (
+                        <option key={index} value={pageSize}>
+                            Show{' '}{pageSize}
+                        </option>
+                    ))}
+                </select>
             </div>
             {/* Modal */}
             <div className="modal fade" id="exampleModal19" tabIndex="-1" aria-hidden="true">
@@ -475,7 +516,7 @@ export default function TaskTable({ getRowCanExpand }) {
             </div>
             <button
                 type="button"
-                className="btn btn-outline-secondary"
+                className="btn btn-outline-secondary my-3"
                 data-bs-toggle="modal"
                 data-bs-target="#exampleModal19"
                 style={{ width: '7rem' }}
@@ -484,27 +525,6 @@ export default function TaskTable({ getRowCanExpand }) {
                 {' '}MODAL
             </button >
         </div >
-    );
-}
-
-// eslint-disable-next-line react/prop-types
-const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...props }) => {
-    const [value, setValue] = useState(initialValue);
-
-    useEffect(() => {
-        setValue(initialValue)
-    }, [initialValue]);
-
-    useEffect(() => {
-        const timeout = setTimeout(() => {
-            onChange(value)
-        }, debounce)
-
-        return () => clearTimeout(timeout)
-    }, [value, debounce, onChange]);
-
-    return (
-        <input {...props} value={value} onChange={e => setValue(e.target.value)} />
     );
 }
 
@@ -543,7 +563,16 @@ const renderSubComponent = ({ row }) => {
                 </div>
             </div>
         </div>
-    )
+    );
+}
+
+const renderUperRow = ({ row }) => {
+    return (
+        <div className='row'>
+            {/* <code>{JSON.stringify(row.original, null, 2)}</code> */}
+            <p className='mb-0'>Object: {row.original.object}</p>
+        </div>
+    );
 }
 
 const Filter = ({ column, table }) => {
@@ -560,7 +589,7 @@ const Filter = ({ column, table }) => {
 
     return typeof firstValue === 'number' ? (
         <div>
-            <div className="flex space-x-2">
+            <div className="d-flex w-auto justify-content-center ">
                 <DebouncedInput
                     type="number"
                     min={Number(column.getFacetedMinMaxValues()?.[0] ?? '')}
@@ -573,7 +602,7 @@ const Filter = ({ column, table }) => {
                         ? `(${column.getFacetedMinMaxValues()?.[0]})`
                         : ''
                         }`}
-                    className="w-24 border shadow rounded"
+                    className="px-1 border rounded"
                 />
                 <DebouncedInput
                     type="number"
@@ -587,10 +616,9 @@ const Filter = ({ column, table }) => {
                         ? `(${column.getFacetedMinMaxValues()?.[1]})`
                         : ''
                         }`}
-                    className="w-24 border shadow rounded"
+                    className="px-1 border rounded"
                 />
             </div>
-            <div className="h-1" />
         </div>
     ) : (
         <>
@@ -604,10 +632,33 @@ const Filter = ({ column, table }) => {
                 value={(columnFilterValue ?? '')}
                 onChange={value => column.setFilterValue(value)}
                 placeholder={`Search... (${column.getFacetedUniqueValues().size})`}
-                className="w-36 border shadow rounded"
+                className="border rounded"
                 list={column.id + 'list'}
             />
-            <div className="h-1" />
         </>
     )
+}
+
+const createDebounceFn = (fn, debounceTime) => {
+    let promise = undefined;
+    return (...props) => {
+        if (!promise) {
+            promise = new Promise(r => setTimeout(r, debounceTime));
+            promise.then(() => fn(...props)).finally(() => {
+                promise = undefined;
+            });
+        }
+    }
+}
+
+// eslint-disable-next-line react/prop-types
+const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...props }) => {
+
+    const handleOnChange = createDebounceFn(e => {
+        onChange(e.target.value)
+    }, debounce);
+
+    return (
+        <input {...props} onChange={handleOnChange} />
+    );
 }
