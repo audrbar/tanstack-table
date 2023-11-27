@@ -206,10 +206,10 @@ export default function TaskTable({ getRowCanExpand }) {
                     className="form-select bg-transparent mx-2"
                     aria-label="Object select"
                     style={{ width: '9rem' }}
-                    value={table.getColumn("object").getFilterValue() || ''}
+                    value={table.getColumn("object").getFilterValue()}
                     onChange={(e) => table.getColumn("object")?.setFilterValue(e.target.value)}
                 >
-                    <option value="">Pick Object</option>
+                    <option id="Object select" value="">Pick Object</option>
                     {filterByObject.map((columnFilter, index) => (
                         <option key={index} value={columnFilter}>{columnFilter}</option>))}
                 </select>
@@ -217,10 +217,10 @@ export default function TaskTable({ getRowCanExpand }) {
                     className="form-select bg-transparent mx-2"
                     aria-label="Program select"
                     style={{ width: '10rem' }}
-                    value={table.getColumn("object").getFilterValue() || ''}
+                    value={table.getColumn("object").getFilterValue()}
                     onChange={(e) => table.getColumn("program")?.setFilterValue(e.target.value)}
                 >
-                    <option value="">Pick Program</option>
+                    <option id="Program select" value="">Pick Program</option>
                     {filterByProgram.map((columnFilter, index) => (
                         <option key={index} value={columnFilter}>{columnFilter}</option>))}
                 </select>
@@ -228,10 +228,10 @@ export default function TaskTable({ getRowCanExpand }) {
                     className="form-select bg-transparent mx-2"
                     aria-label="Capability select"
                     style={{ width: '10rem' }}
-                    value={table.getColumn("object").getFilterValue() || ''}
+                    value={table.getColumn("object").getFilterValue() || 'Pick Capability'}
                     onChange={(e) => table.getColumn("capability")?.setFilterValue(e.target.value)}
                 >
-                    <option value="">Pick Capability</option>
+                    <option id="Capability select" value="">Pick Capability</option>
                     {filterByCapability.map((columnFilter, index) => (
                         <option key={index} value={columnFilter}>{columnFilter}</option>))}
                 </select>
@@ -239,10 +239,10 @@ export default function TaskTable({ getRowCanExpand }) {
                     className="form-select bg-transparent mx-2"
                     aria-label="Project Planing select"
                     style={{ width: '11rem' }}
-                    value={table.getColumn("object").getFilterValue() || ''}
+                    value={table.getColumn("object").getFilterValue() || 'Pick Planed Item'}
                     onChange={(e) => table.getColumn("projectPlaning")?.setFilterValue(e.target.value)}
                 >
-                    <option defaultValue="Pick Planed Item" value="">Pick Planed Item</option>
+                    <option id="Project Planing select" value="">Pick Planed Item</option>
                     {filterByPlaning.map((columnFilter, index) => (
                         <option key={index} value={columnFilter}>{columnFilter}</option>))}
                 </select>
@@ -250,10 +250,10 @@ export default function TaskTable({ getRowCanExpand }) {
                     className="form-select bg-transparent mx-2"
                     aria-label="Project System select"
                     style={{ width: '13rem' }}
-                    value={table.getColumn("object").getFilterValue() || ''}
+                    value={table.getColumn("object").getFilterValue() || 'Pick System Project'}
                     onChange={(e) => table.getColumn("projectSystem")?.setFilterValue(e.target.value)}
                 >
-                    <option defaultValue="Pick System Project" value="">Pick System Project</option>
+                    <option id="Project System select" value="">Pick System Project</option>
                     {filterBySystem.map((columnFilter, index) => (
                         <option key={index} value={columnFilter}>{columnFilter}</option>))}
                 </select>
@@ -261,14 +261,12 @@ export default function TaskTable({ getRowCanExpand }) {
                     className="form-select bg-transparent mx-2"
                     aria-label="Asset Type select"
                     style={{ width: '8rem' }}
-                    value={table.getColumn("object").getFilterValue() || ''}
+                    value={table.getColumn("object").getFilterValue() || 'Pick Asset'}
                     onChange={(e) => table.getColumn("assetType")?.setFilterValue(e.target.value)}
                 >
-                    <option defaultValue="Pick Asset" value="">Pick Asset</option>
+                    <option id="Asset Type select" value="">Pick Asset</option>
                     {filterByAsset.map((columnFilter, index) => (
-                        <option key={index} value={columnFilter}
-
-                        >{columnFilter}</option>))}
+                        <option key={index} value={columnFilter}>{columnFilter}</option>))}
                 </select>
             </div>
 
@@ -640,23 +638,20 @@ const Filter = ({ column, table }) => {
 }
 
 const createDebounceFn = (fn, debounceTime) => {
-    let promise = undefined;
+    /** @type {ReturnType<setInterval> | undefined} */
+    let tid;
     return (...props) => {
-        if (!promise) {
-            promise = new Promise(r => setTimeout(r, debounceTime));
-            promise.then(() => fn(...props)).finally(() => {
-                promise = undefined;
-            });
-        }
+        clearTimeout(tid);
+        tid = setTimeout(() => fn(...props), debounceTime);
     }
 }
 
 // eslint-disable-next-line react/prop-types
-const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...props }) => {
+const DebouncedInput = ({ value: initialValue, onChange, debounceTime = 500, ...props }) => {
 
     const handleOnChange = createDebounceFn(e => {
         onChange(e.target.value)
-    }, debounce);
+    }, debounceTime);
 
     return (
         <input {...props} onChange={handleOnChange} />
