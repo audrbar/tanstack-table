@@ -2,16 +2,46 @@ import React from 'react';
 import { faker } from '@faker-js/faker';
 
 import {
-    Column,
-    Table,
-    ExpandedState,
     useReactTable,
     getCoreRowModel,
     getPaginationRowModel,
     getFilteredRowModel,
     getExpandedRowModel,
     flexRender,
+    sortingFns,
+    getFacetedRowModel,
+    getFacetedUniqueValues,
+    getFacetedMinMaxValues,
+    FilterFns,
+
 } from '@tanstack/react-table';
+import {
+    RankingInfo,
+    rankItem,
+    compareItems,
+} from '@tanstack/match-sorter-utils';
+
+const fuzzyFilter = (row, columnId, value, addMeta) => {
+    // Rank the item
+    const itemRank = rankItem(row.getValue(columnId), value)
+    // Store the itemRank info
+    addMeta({ itemRank })
+    // Return if the item should be filtered in/out
+    return itemRank.passed
+}
+
+const fuzzySort = (rowA, rowB, columnId) => {
+    let dir = 0
+    // Only sort by rank if the column has ranking information
+    if (rowA.columnFiltersMeta[columnId]) {
+        dir = compareItems(
+            rowA.columnFiltersMeta[columnId]?.itemRank,
+            rowB.columnFiltersMeta[columnId]?.itemRan
+        )
+    }
+    // Provide an alphanumeric fallback for when the item ranks are equal
+    return dir === 0 ? sortingFns.alphanumeric(rowA, rowB, columnId) : dir
+}
 
 export default function TableExp() {
     const rerender = React.useReducer(() => ({}), {})[1];
@@ -56,6 +86,8 @@ export default function TableExp() {
                         </>
                     </div>
                 ),
+                filterFn: 'fuzzy',
+                sortingFn: fuzzySort,
             },
             {
                 accessorFn: (row) => row.lastName,
@@ -64,17 +96,15 @@ export default function TableExp() {
                 header: () => <span>Last Name</span>,
             },
             {
-                accessorFn: (originalRow) => new Date(originalRow.bookings), //convert to date for sorting and filtering
+                accessorKey: 'bookings',
                 header: 'Bookings',
-                cell: ({ cell }) =>
-                    cell
-                        .getValue('bookings')
-                        .toLocaleDateString('lt-Lt', 'yyyy.MM.dd'),
-                filterFn: 'isWithinRange',
+                cell: (info) => new Date(info.getValue()).toLocaleDateString('lt-Lt'),
+                filterFn: 'dateBetweenFilterFn',
             },
             {
                 accessorKey: 'visits',
-                header: () => <span>Visits</span>,
+                header: 'Visits',
+                cell: (info) => (info.getValue('visits')).toString(),
             },
             {
                 accessorKey: 'status',
@@ -87,6 +117,9 @@ export default function TableExp() {
     const [data, setData] = React.useState(() => makeData(100, 4));
     const refreshData = () => setData(() => makeData(100, 4));
     const [expanded, setExpanded] = React.useState({});
+    const [columnFilters, setColumnFilters] = React.useState([]);
+    const [globalFilter, setGlobalFilter] = React.useState('');
+    const [sorting, setSorting] = React.useState([]);
 
     console.log(data);
 
@@ -94,22 +127,48 @@ export default function TableExp() {
         data,
         columns,
         state: {
+            sorting,
             expanded,
+            columnFilters,
+            globalFilter,
         },
         filterFns: {
-            isWithinRange: isWithinRange,
+            dateBetweenFilterFn: dateBetweenFilterFn,
+            fuzzy: fuzzyFilter,
         },
+        onSortingChange: setSorting,
+        onColumnFiltersChange: setColumnFilters,
+        onGlobalFilterChange: setGlobalFilter,
+        globalFilterFn: fuzzyFilter,
         onExpandedChange: setExpanded,
         getSubRows: (row) => row.subRows,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         getExpandedRowModel: getExpandedRowModel(),
-        debugTable: true,
+        getFacetedRowModel: getFacetedRowModel(),
+        getFacetedUniqueValues: getFacetedUniqueValues(),
+        getFacetedMinMaxValues: getFacetedMinMaxValues(),
     });
+
+    React.useEffect(() => {
+        if (table.getState().columnFilters[0]?.id === 'firstName') {
+            if (table.getState().sorting[0]?.id !== 'firstName') {
+                table.setSorting([{ id: 'firstName', desc: false }])
+            }
+        }
+    }, [table.getState().columnFilters[0]?.id]);
 
     return (
         <div className='row'>
+            <div>
+                <DebouncedInput
+                    value={globalFilter ?? ''}
+                    onChange={value => setGlobalFilter(String(value))}
+                    className="form-control p-2 mx-2"
+                    placeholder="Search all columns..."
+                />
+            </div>
             <table className='table table-sm table-hover table-responsive'>
                 <thead>
                     {table.getHeaderGroups().map((headerGroup) => (
@@ -121,23 +180,30 @@ export default function TableExp() {
                                         colSpan={header.colSpan}
                                     >
                                         {header.isPlaceholder ? null : (
-                                            <div>
-                                                {flexRender(
-                                                    header.column.columnDef
-                                                        .header,
-                                                    header.getContext()
-                                                )}
+                                            <>
+                                                <div
+                                                    {...{
+                                                        className: header.column.getCanSort()
+                                                            ? 'cursor-pointer select-none'
+                                                            : '',
+                                                        onClick: header.column.getToggleSortingHandler(),
+                                                    }}
+                                                >
+                                                    {flexRender(
+                                                        header.column.columnDef.header,
+                                                        header.getContext()
+                                                    )}
+                                                    {{
+                                                        asc: ' 🔼',
+                                                        desc: ' 🔽',
+                                                    }[header.column.getIsSorted()] ?? null}
+                                                </div>
                                                 {header.column.getCanFilter() ? (
                                                     <div>
-                                                        <Filter
-                                                            column={
-                                                                header.column
-                                                            }
-                                                            table={table}
-                                                        />
+                                                        <Filter column={header.column} table={table} />
                                                     </div>
                                                 ) : null}
-                                            </div>
+                                            </>
                                         )}
                                     </th>
                                 );
@@ -236,7 +302,8 @@ export default function TableExp() {
                 <button onClick={() => refreshData()}>Refresh Data</button>
             </div>
             <pre>{JSON.stringify(expanded, null, 2)}</pre>
-        </div>
+            <pre>{JSON.stringify(table.getState(), null, 2)}</pre>
+        </div >
     );
 };
 
@@ -244,54 +311,82 @@ function Filter({ column, table }) {
     const firstValue = table.getPreFilteredRowModel().flatRows[0]?.getValue(column.id);
     const columnFilterValue = column.getFilterValue();
 
+    const sortedUniqueValues = React.useMemo(
+        () =>
+            typeof firstValue === 'number'
+                ? []
+                : Array.from(column.getFacetedUniqueValues().keys()).sort(),
+        [column, firstValue]
+    )
+
     return typeof firstValue === 'number' ? (
-        <div className="flex space-x-2">
-            <input
+        <div className="d-flex w-auto justify-content-center">
+            <DebouncedInput
                 type="number"
-                value={columnFilterValue?.[0] ?? ''}
-                onChange={(e) =>
-                    column.setFilterValue((old) => [e.target.value, old?.[1]])
+                min={Number(column.getFacetedMinMaxValues()?.[0] ?? '')}
+                max={Number(column.getFacetedMinMaxValues()?.[1] ?? '')}
+                value={(columnFilterValue)?.[0] ?? ''}
+                onChange={value =>
+                    column.setFilterValue((old) => [value, old?.[1]])
                 }
-                placeholder={`Min`}
+                placeholder={`Min ${column.getFacetedMinMaxValues()?.[0]
+                    ? `(${column.getFacetedMinMaxValues()?.[0]})`
+                    : ''
+                    }`}
                 className="border shadow rounded"
             />
-            <input
+            <DebouncedInput
                 type="number"
-                value={columnFilterValue?.[1] ?? ''}
-                onChange={(e) =>
-                    column.setFilterValue((old) => [old?.[0], e.target.value])
+                min={Number(column.getFacetedMinMaxValues()?.[0] ?? '')}
+                max={Number(column.getFacetedMinMaxValues()?.[1] ?? '')}
+                value={(columnFilterValue)?.[1] ?? ''}
+                onChange={value =>
+                    column.setFilterValue((old) => [old?.[0], value])
                 }
-                placeholder={`Max`}
+                placeholder={`Max ${column.getFacetedMinMaxValues()?.[1]
+                    ? `(${column.getFacetedMinMaxValues()?.[1]})`
+                    : ''
+                    }`}
                 className="border shadow rounded"
             />
         </div>
     ) : typeof firstValue === 'string' ? (
-        <input
-            type="text"
-            value={columnFilterValue ?? ''}
-            onChange={(e) => column.setFilterValue(e.target.value)}
-            placeholder={`Search...`}
-            className="border shadow rounded"
-        />
+        <>
+            <datalist id={column.id + 'list'}>
+                {sortedUniqueValues.slice(0, 5000).map((value) => (
+                    <option value={value} key={value} />
+                ))}
+            </datalist>
+            <DebouncedInput
+                type="text"
+                value={(columnFilterValue ?? '')}
+                onChange={value => column.setFilterValue(value)}
+                placeholder={`Search... (${column.getFacetedUniqueValues().size})`}
+                className="w-36 border shadow rounded"
+                list={column.id + 'list'}
+            />
+            <div className="h-1" />
+        </>
     ) : (
         <div>
             {'From '}
             <input
                 type="date"
-                value={columnFilterValue ?? ''}
+                value={columnFilterValue?.[0] ?? ''}
                 onChange={e => {
-                    const val = e.target.value
-                    column.setFilterValue((old = []) => [val ? val : undefined, old[1]])
+                    const val = e.currentTarget.value
+                    column.setFilterValue((old = []) => [val, old[1]])
                 }}
                 className="border shadow rounded"
             />
             {' to '}
             <input
                 type="date"
-                value={columnFilterValue ?? ''}
+                value={columnFilterValue?.[1] ?? ''}
                 onChange={e => {
-                    const val = e.target.value
-                    column.setFilterValue((old = []) => [old[0], val ? val.concat('T23:59:59.999Z') : undefined])
+                    e.preventDefault();
+                    const val = e.currentTarget.value
+                    column.setFilterValue((old = []) => [old[0], val])
                 }}
                 className="border shadow rounded"
             />
@@ -299,44 +394,11 @@ function Filter({ column, table }) {
     );
 }
 
-function dateBetweenFilterFn(rows, id, filterValues) {
-    const sd = filterValues[0] ? new Date(filterValues[0]) : undefined
-    const ed = filterValues[1] ? new Date(filterValues[1]) : undefined
-
-    if (ed || sd) {
-        return rows.filter(r => {
-            const cellDate = new Date(r.values[id])
-
-            if (ed && sd) {
-                return cellDate >= sd && cellDate <= ed
-            } else if (sd) {
-                return cellDate >= sd
-            } else if (ed) {
-                return cellDate <= ed
-            }
-        })
-    } else {
-        return rows;
-    }
-}
-
-const isWithinRange = (row, columnId, value) => {
-    const date = row.getValue(columnId);
-    const [start, end] = value;
-    //If one filter defined and date is null filter it
-    if ((start || end) && !date) return false;
-    if (start && !end) {
-        return date.getTime() >= start.getTime()
-    } else if (!start && end) {
-        return date.getTime() <= end.getTime()
-    } else if (start && end) {
-        return date.getTime() >= start.getTime() && date.getTime() <= end.getTime()
-    } else return true;
-};
-
-function isValidDate(d) {
-    const parsedDate = new Date(d)
-    return parsedDate instanceof Date && !isNaN(parsedDate)
+function dateBetweenFilterFn(row, columnIds, filterValue) {
+    const from = filterValue[0] ? new Date(filterValue[0]) : undefined
+    const to = filterValue[1] ? new Date(filterValue[1]) : undefined
+    const value = row.getValue('bookings');
+    return (from ? value.getTime() >= from.getTime() : true) && (to ? value.getTime() <= to.getTime() : true);
 }
 
 const range = (len) => {
@@ -371,4 +433,25 @@ function makeData(...lens) {
     }
 
     return makeDataLevel();
+}
+
+const createDebounceFn = (fn, debounceTime) => {
+    /** @type {ReturnType<setInterval> | undefined} */
+    let tid;
+    return (...props) => {
+        clearTimeout(tid);
+        tid = setTimeout(() => fn(...props), debounceTime);
+    }
+}
+
+// eslint-disable-next-line react/prop-types
+const DebouncedInput = ({ value: initialValue, onChange, debounceTime = 500, ...props }) => {
+
+    const handleOnChange = createDebounceFn(e => {
+        onChange(e.target.value)
+    }, debounceTime);
+
+    return (
+        <input {...props} onChange={handleOnChange} />
+    );
 }
