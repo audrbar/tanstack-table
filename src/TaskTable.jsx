@@ -290,7 +290,7 @@ export default function TaskTable({ getRowCanExpand }) {
                         Acquisition Year
                     </label>
                     {filterByAcquisition?.map((year, index) => (
-                        <React.Fragment key={index}>
+                        <Fragment key={index}>
                             <input key={"input" + index} type="radio" className="btn-check" name="btnradio" id={"btnradio" + index} autoComplete="off" />
                             <label
                                 key={"label" + index}
@@ -300,7 +300,7 @@ export default function TaskTable({ getRowCanExpand }) {
                             >
                                 {year}
                             </label>
-                        </React.Fragment>
+                        </Fragment>
                     ))}
                 </div>
 

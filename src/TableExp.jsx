@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo, useReducer, Fragment } from 'react';
 import { faker } from '@faker-js/faker';
 
 import {
@@ -12,8 +12,6 @@ import {
     getFacetedRowModel,
     getFacetedUniqueValues,
     getFacetedMinMaxValues,
-    FilterFns,
-
 } from '@tanstack/react-table';
 import {
     RankingInfo,
@@ -22,31 +20,26 @@ import {
 } from '@tanstack/match-sorter-utils';
 
 const fuzzyFilter = (row, columnId, value, addMeta) => {
-    // Rank the item
     const itemRank = rankItem(row.getValue(columnId), value)
-    // Store the itemRank info
     addMeta({ itemRank })
-    // Return if the item should be filtered in/out
     return itemRank.passed
 }
 
 const fuzzySort = (rowA, rowB, columnId) => {
     let dir = 0
-    // Only sort by rank if the column has ranking information
     if (rowA.columnFiltersMeta[columnId]) {
         dir = compareItems(
             rowA.columnFiltersMeta[columnId]?.itemRank,
             rowB.columnFiltersMeta[columnId]?.itemRan
         )
     }
-    // Provide an alphanumeric fallback for when the item ranks are equal
     return dir === 0 ? sortingFns.alphanumeric(rowA, rowB, columnId) : dir
 }
 
 export default function TableExp() {
-    const rerender = React.useReducer(() => ({}), {})[1];
+    const rerender = useReducer(() => ({}), {})[1];
 
-    const columns = React.useMemo(
+    const columns = useMemo(
         () => [
             {
                 accessorKey: 'firstName',
@@ -114,12 +107,12 @@ export default function TableExp() {
         []
     );
 
-    const [data, setData] = React.useState(() => makeData(100, 4));
+    const [data, setData] = useState(() => makeData(100, 4));
     const refreshData = () => setData(() => makeData(100, 4));
-    const [expanded, setExpanded] = React.useState({});
-    const [columnFilters, setColumnFilters] = React.useState([]);
-    const [globalFilter, setGlobalFilter] = React.useState('');
-    const [sorting, setSorting] = React.useState([]);
+    const [expanded, setExpanded] = useState({});
+    const [columnFilters, setColumnFilters] = useState([]);
+    const [globalFilter, setGlobalFilter] = useState('');
+    const [sorting, setSorting] = useState([]);
 
     console.log(data);
 
@@ -136,6 +129,7 @@ export default function TableExp() {
             dateBetweenFilterFn: dateBetweenFilterFn,
             fuzzy: fuzzyFilter,
         },
+        enableFacetedValues: true,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
         onGlobalFilterChange: setGlobalFilter,
@@ -151,13 +145,13 @@ export default function TableExp() {
         getFacetedMinMaxValues: getFacetedMinMaxValues(),
     });
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (table.getState().columnFilters[0]?.id === 'firstName') {
             if (table.getState().sorting[0]?.id !== 'firstName') {
                 table.setSorting([{ id: 'firstName', desc: false }])
             }
         }
-    }, [table.getState().columnFilters[0]?.id]);
+    }, [table]);
 
     return (
         <div className='row'>
@@ -199,7 +193,7 @@ export default function TableExp() {
                                                     }[header.column.getIsSorted()] ?? null}
                                                 </div>
                                                 {header.column.getCanFilter() ? (
-                                                    <div>
+                                                    <div className='d-flex my-2'>
                                                         <Filter column={header.column} table={table} />
                                                     </div>
                                                 ) : null}
@@ -311,7 +305,7 @@ function Filter({ column, table }) {
     const firstValue = table.getPreFilteredRowModel().flatRows[0]?.getValue(column.id);
     const columnFilterValue = column.getFilterValue();
 
-    const sortedUniqueValues = React.useMemo(
+    const sortedUniqueValues = useMemo(
         () =>
             typeof firstValue === 'number'
                 ? []
@@ -320,7 +314,7 @@ function Filter({ column, table }) {
     )
 
     return typeof firstValue === 'number' ? (
-        <div className="d-flex w-auto justify-content-center">
+        <div className='d-flex flex-column gap-2'>
             <DebouncedInput
                 type="number"
                 min={Number(column.getFacetedMinMaxValues()?.[0] ?? '')}
@@ -333,7 +327,7 @@ function Filter({ column, table }) {
                     ? `(${column.getFacetedMinMaxValues()?.[0]})`
                     : ''
                     }`}
-                className="border shadow rounded"
+                className="border rounded"
             />
             <DebouncedInput
                 type="number"
@@ -347,7 +341,7 @@ function Filter({ column, table }) {
                     ? `(${column.getFacetedMinMaxValues()?.[1]})`
                     : ''
                     }`}
-                className="border shadow rounded"
+                className="border rounded"
             />
         </div>
     ) : typeof firstValue === 'string' ? (
@@ -362,35 +356,41 @@ function Filter({ column, table }) {
                 value={(columnFilterValue ?? '')}
                 onChange={value => column.setFilterValue(value)}
                 placeholder={`Search... (${column.getFacetedUniqueValues().size})`}
-                className="w-36 border shadow rounded"
+                className="border rounded"
                 list={column.id + 'list'}
             />
             <div className="h-1" />
         </>
     ) : (
-        <div>
-            {'From '}
-            <input
-                type="date"
-                value={columnFilterValue?.[0] ?? ''}
-                onChange={e => {
-                    const val = e.currentTarget.value
-                    column.setFilterValue((old = []) => [val, old[1]])
-                }}
-                className="border shadow rounded"
-            />
-            {' to '}
-            <input
-                type="date"
-                value={columnFilterValue?.[1] ?? ''}
-                onChange={e => {
-                    e.preventDefault();
-                    const val = e.currentTarget.value
-                    column.setFilterValue((old = []) => [old[0], val])
-                }}
-                className="border shadow rounded"
-            />
-        </div>
+        <div className='d-flex flex-column gap-2'>
+            <div className='d-flex flex-row'>
+                {'From '}
+                <input
+                    type="date"
+                    value={columnFilterValue?.[0] ?? ''}
+                    onChange={e => {
+                        const val = e.currentTarget.value
+                        column.setFilterValue((old = []) => [val, old[1]])
+                    }}
+                    placeholder="yyyy/MM/dd"
+                    className="ms-2 border rounded"
+                />
+            </div>
+            <div className='d-flex flex-row'>
+                {'To '}
+                <input
+                    type="date"
+                    value={columnFilterValue?.[1] ?? ''}
+                    onChange={e => {
+                        e.preventDefault();
+                        const val = e.currentTarget.value
+                        column.setFilterValue((old = []) => [old[0], val])
+                    }}
+                    placeholder="YYYY/MM/DD"
+                    className="ms-auto border rounded"
+                />
+            </div>
+        </div >
     );
 }
 
