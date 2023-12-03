@@ -90,6 +90,7 @@ export default function TableExp() {
             },
             {
                 accessorKey: 'bookings',
+                type: 'date',
                 header: 'Bookings',
                 cell: (info) => new Date(info.getValue()).toLocaleDateString('lt-Lt'),
                 filterFn: 'dateBetweenFilterFn',
@@ -297,6 +298,7 @@ export default function TableExp() {
             </div>
             <pre>{JSON.stringify(expanded, null, 2)}</pre>
             <pre>{JSON.stringify(table.getState(), null, 2)}</pre>
+            <pre>{JSON.stringify(table._getColumnDefs("type"), null, 2)}</pre>
         </div >
     );
 };
