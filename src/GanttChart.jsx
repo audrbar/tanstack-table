@@ -14,6 +14,34 @@ const GanttChart = () => {
         columnWidth = 250;
     }
 
+
+    const handleTaskChange = (task) => {
+        console.log("On date change Id:" + task.id);
+        let newTasks = tasks.map(t => (t.id === task.id ? task : t));
+        if (task.project) {
+            const [start, end] = getStartEndDateForProject(newTasks, task.project);
+            const project = newTasks[newTasks.findIndex(t => t.id === task.project)];
+            if (
+                project.start.getTime() !== start.getTime() ||
+                project.end.getTime() !== end.getTime()
+            ) {
+                const changedProject = { ...project, start, end };
+                newTasks = newTasks.map(t =>
+                    t.id === task.project ? changedProject : t
+                );
+            }
+        }
+        setTasks(newTasks);
+    };
+
+    const handleDblClick = (task) => {
+        alert("On Double Click event Id:" + task.id);
+    };
+
+    const handleSelect = (task, isSelected) => {
+        console.log(task.name + " has " + (isSelected ? "selected" : "unselected"));
+    };
+
     const handleExpanderClick = (task) => {
         setTasks(tasks.map(t => (t.id === task.id ? task : t)));
         console.log("On expander click Id:" + task.id);
@@ -29,7 +57,13 @@ const GanttChart = () => {
             <Gantt
                 tasks={tasks}
                 viewMode={view}
+                viewDate={new Date()}
+                onSelect={handleSelect}
                 onExpanderClick={handleExpanderClick}
+                listCellWidth={isChecked ? "155px" : ""}
+                columnWidth={columnWidth}
+                ganttHeight={300}
+                onDoubleClick={handleDblClick}
                 headerTitle='Gantt Chart'
                 locale="lt-LT"
             />
