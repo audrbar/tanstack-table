@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import TaskTable from './TaskTable';
 import TableExp from './TableExp';
+import GanttChart from './GanttChart';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 if (!root) throw new Error('Failed to find the root element')
@@ -16,6 +17,8 @@ root.render(
       <TaskTable
         getRowCanExpand={() => true}
         enableFacetedValues={() => true}
+      />
+      <GanttChart
       />
     </div>
   </React.StrictMode>

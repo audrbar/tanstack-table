@@ -53,3 +53,6 @@ See the section about [deployment](https://facebook.github.io/create-react-app/d
 
 https://github.com/trulymittal/tanstack-table-tutorial
 https://www.youtube.com/watch?v=AuLg79Th3xE
+
+https://www.npmjs.com/package/gantt-chart-react?activeTab=readme#gantt-chart-react
+https://github.com/easyops-cn/gantt-chart-react/tree/develop
