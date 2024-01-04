@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { Gantt, Task, EventOption, StylingOption, ViewMode, DisplayOption } from "gantt-chart-react";
-import 'gantt-chart-react/dist/index.css';
+import { Gantt, Task, EventOption, StylingOption, ViewMode, DisplayOption } from "gantt-task-react";
+import 'gantt-task-react/dist/index.css';
 
 const GanttChart = () => {
 
@@ -66,6 +66,7 @@ const GanttChart = () => {
                 onDoubleClick={handleDblClick}
                 headerTitle='Gantt Chart'
                 locale="lt-LT"
+                TaskListTable={() => ("sdfsdfsdfsdf")}
             />
         </div>
     )
