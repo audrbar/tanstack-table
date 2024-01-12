@@ -51,7 +51,7 @@ export default function TableExp() {
                                     table.getToggleAllRowsExpandedHandler(),
                             }}
                         >
-                            {table.getIsAllRowsExpanded() ? '👇' : '👉'}
+                            {table.getIsAllRowsExpanded() ? '<' : '>'}
                         </button>{' '}
                         First Name
                     </>
@@ -70,10 +70,10 @@ export default function TableExp() {
                                         style: { cursor: 'pointer' },
                                     }}
                                 >
-                                    {row.getIsExpanded() ? '👇' : '👉'}
+                                    {row.getIsExpanded() ? '<' : '>'}
                                 </button>
                             ) : (
-                                '🔵'
+                                '-'
                             )}{' '}
                             {getValue()}
                         </>
@@ -108,8 +108,8 @@ export default function TableExp() {
         []
     );
 
-    const [data, setData] = useState(() => makeData(100, 4));
-    const refreshData = () => setData(() => makeData(100, 4));
+    const [data, setData] = useState(() => makeData(100, 4, 3));
+    const refreshData = () => setData(() => makeData(100, 4, 3));
     const [expanded, setExpanded] = useState({});
     const [columnFilters, setColumnFilters] = useState([]);
     const [globalFilter, setGlobalFilter] = useState('');
@@ -130,6 +130,10 @@ export default function TableExp() {
             dateBetweenFilterFn: dateBetweenFilterFn,
             fuzzy: fuzzyFilter,
         },
+        enableExpanding: true,
+        filterFromLeafRows: true,
+        initialState: { expanded: true },
+        paginateExpandedRows: false,
         enableFacetedValues: true,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
