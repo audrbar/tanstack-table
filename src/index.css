@@ -24,3 +24,7 @@ body {
   justify-content: center;
   align-items: center;
 }
+td, th {
+    vertical-align: top;
+    text-align: left;
+}

@@ -75,3 +75,16 @@ export function makeData(...lens) {
 export const PERSON = faker.helpers.multiple(makeData, {
     count: 50,
 });
+
+const tasks = Array(30).fill(null).map((_, i) => "Task" + i);
+const dep = Array(30).fill(null).map((_, i) => "Dep" + i)
+
+function createItem() {
+    return {
+        name: "Funkcija" + Math.round(Math.random() * 100),
+        task: tasks[Math.round(Math.random() * (tasks.length - 1))],
+        dep: dep[Math.round(Math.random() * (dep.length - 1))],
+    };
+}
+
+export const data = Array(100).fill(null).map(createItem);

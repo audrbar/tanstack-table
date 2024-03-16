@@ -115,8 +115,6 @@ export default function TableExp() {
     const [globalFilter, setGlobalFilter] = useState('');
     const [sorting, setSorting] = useState([]);
 
-    console.log(data);
-
     const table = useReactTable({
         data,
         columns,
